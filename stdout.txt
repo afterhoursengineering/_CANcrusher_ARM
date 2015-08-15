@@ -1,0 +1,4 @@
+rm *.o *.d main.elf main.hex
+rm ./build/*.o ./build/*.d
+rm ./build/SdFat/*.o ./build/SdFat/*.d
+rm ./build/SdFat/utility/*.o ./build/SdFat/utility/*.d
