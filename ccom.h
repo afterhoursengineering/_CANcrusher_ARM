@@ -23,6 +23,8 @@
 /*---------------------------------------------------------------------------*/
 /* System Includes                                                           */
 /*---------------------------------------------------------------------------*/
+#include <stdint.h>
+#include "MCP2515.h"
 
 /*---------------------------------------------------------------------------*/
 /* Constant declarations                                                     */
@@ -35,39 +37,56 @@
 /*---------------------------------------------------------------------------*/
 /* Structure declarations                                                     */
 /*---------------------------------------------------------------------------*/
-typedef struct CCOM_ID00_Struct
-{
-	uint16_t u16Header;   /* 0xA55A */
-	uint8_t  u8Id;		  /* 0x00 */
-	uint8_t  u8Dat;		  /* 00: IO only,
-	                       * 01: CAN message 1 only
-	                       * 02: Both CAN Messages only
-	                       * 03: Both CAN + IO
-	                       */
-	uint64_t u64Can1EpochTime; /* EPOCH time --> milliseconds
-	                        * since 1/1/1970 00:00:00:000
-	                        */
-	uint32_t u32Can1Id;
-	uint8_t  u8Can1Dlc;
-	uint8_t  u8Can1Stat;   /* See CAN_msg_t for details */
-	uint8_t  au8Can1Data[8u];
 
-	uint64_t u64Can2EpochTime;
-	uint32_t u32Can2Id;
-	uint8_t  u8Can2Dlc;
-	uint8_t  u8Can2Stat;
-	uint8_t  au8Can2Data[8u];
+/**
+ *  IMPORTANT: The structure is packed specifically to afford 8-byte alignment to
+ *             make its physical size only 64 bytes.  Do not change the order.
+ */
+typedef union {
+	struct {
+		uint16_t u16Header;   /* 0xA55A */
+		uint8_t  u8Id;		  /* 0x00 */
+		uint8_t  u8Dat;		  /* 00: IO only,
+							   * 01: CAN message 1 and IO
+							   * 02: Both CAN Messages and IO
+							   */
+		uint8_t  au8Unused1[4u]; /* unused placeholder for 8-byte alignment */
 
-	uint8_t  u8IoDir;	    /* VEH IO pin direction (1:input, 0:output) */
-	uint8_t  u8IoVal;		/* VEH IO pin value */
-	uint8_t  u8BufSize;		/*
-	                         * Current # of buffers used to
-	                         * hold the 64-byte packets.
-	                         */
-	uint8_t  u8Unused[12u];	/* Unused bytes */
 
-	uint8_t  u8Crc;			/* 8-bit CRC of u16Header to u8Unused[7] */
-}T_CCOM_ID00;
+		uint64_t u64CanEpochTime1; /* EPOCH time --> milliseconds
+								* since 1/1/1970 00:00:00:000
+								*/
+		uint8_t  au8CanData1[8u];
+
+		uint32_t u32CanId1;
+		uint8_t  u8CanDlc1;
+		uint8_t  u8CanStat1;   /* See CAN_msg_t for details */
+
+		uint8_t  au8Unused2[2u];	/* unused placeholder for 8-byte alignment */
+
+		uint64_t u64CanEpochTime2;
+		uint8_t  au8CanData2[8u];
+
+		uint32_t u32CanId2;
+		uint8_t  u8CanDlc2;
+		uint8_t  u8CanStat2;
+		uint8_t  au8Unused3[2u];	/* placeholder */
+
+		uint8_t  u8IoDir;	    /* VEH IO pin direction (1:input, 0:output) */
+		uint8_t  u8IoVal;		/* VEH IO pin value */
+
+		uint8_t  au8Unused4[4u];	/* Unused bytes */
+		uint8_t  u8BufSize;		/*
+								 * Current # of buffers used to
+								 * hold the 64-byte packets.
+								 */
+		uint8_t  u8Cksm;			/* 8-bit Cksm of u16Header to u8Unused[7] */
+	};
+
+	uint8_t au8AllData[64u];
+
+} T_CCOM_ID00;
+
 /*---------------------------------------------------------------------------*/
 /* Variable declarations                                                     */
 /*---------------------------------------------------------------------------*/
@@ -89,6 +108,25 @@ extern "C"
  */
 
 void CCOM_Init(void);
+
+/**
+ * \brief Passes CAN message data and VEH_IO data to the output stream
+ * @param canMsg1 pointer to a packet of CAN message data
+ * @param u64Can1EpochTime1 Time the message arrived
+ * @param canMsg2 pointer to a packet of CAN message data
+ * @param u64CanEpochTime2 Time the message arrived
+ * @param u8IoDir 8-bit value representing the direction of the IO pins (Input:1, Output:0)
+ * @param u8IoVal 8-bit value representing the value currently on the IO pins.
+ * @return T if data is in a valid format and if there is space available in the output stream buffers
+ */
+uint8_t CCOM_TxCmd00(CAN_msg_t *canMsg1,
+		             uint64_t u64CanEpochTime1,
+					 CAN_msg_t *canMsg2,
+					 uint64_t u64CanEpochTime2,
+					 uint8_t u8IoDir,
+					 uint8_t u8IoVal);
+
+void CCOM_Task(void);
 
 #ifdef __cplusplus
 }
