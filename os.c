@@ -245,7 +245,7 @@ void OS_Run(void)
 		 *  can arrive as fast as every 170us-200us.
 		 */
 		CAN1_Task();
-		CAN2_Task();
+		CAN2_Task();	/* */
 
 		/* Check if there is received CAN data available and log it */
 		if(CAN1_DataIsReady(&msgCan1Rx))
