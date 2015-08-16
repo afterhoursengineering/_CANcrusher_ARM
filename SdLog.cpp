@@ -213,14 +213,14 @@ bool logData_init()
 {
 	bool retVal = true;
 
-	Serial.println();
-
-	Serial.print(F("DATA_DIM "));
-	Serial.println(DATA_DIM);
-	Serial.print(F("sizeof(data_can_t) "));
-	Serial.println(sizeof(data_can_t));
-	Serial.print(F("sizeof(block_t)= "));
-	Serial.println(sizeof(block_t));
+//	Serial.println();
+//
+//	Serial.print(F("DATA_DIM "));
+//	Serial.println(DATA_DIM);
+//	Serial.print(F("sizeof(data_can_t) "));
+//	Serial.println(sizeof(data_can_t));
+//	Serial.print(F("sizeof(block_t)= "));
+//	Serial.println(sizeof(block_t));
 
 	// Find unused file name.
 	if (BASE_NAME_SIZE > 6){ error("FILE_BASE_NAME too long"); retVal = false; }
@@ -237,11 +237,11 @@ bool logData_init()
 	// Delete old tmp file.
 	if (sd.exists(TMP_FILE_NAME))
 	{
-		Serial.println(F("Deleting tmp file"));
+//		Serial.println(F("Deleting tmp file"));
 		if (!sd.remove(TMP_FILE_NAME)) { error("Can't remove tmp file"); retVal = false; }
 	}
 	// Create new file.
-	Serial.println(F("Creating new file"));
+//	Serial.println(F("Creating new file"));
 	binFile.close();
 	if (!binFile.createContiguous(sd.vwd(),
 								TMP_FILE_NAME, 512 * FILE_BLOCK_COUNT)) { error("createContiguous failed"); retVal = false; }
@@ -253,7 +253,7 @@ bool logData_init()
 	if (cache == 0) { error("cacheClear failed"); retVal = false; }
 
 	// Flash erase all data in the file.
-	Serial.println(F("Erasing all data"));
+//	Serial.println(F("Erasing all data"));
 	//uint32_t bgnErase = bgnBlock;
 	bgnErase = bgnBlock;
 	//uint32_t endErase;
@@ -280,11 +280,16 @@ bool logData_init()
 		emptyQueue[emptyHead] = &block[i];
 		emptyHead = queueNext(emptyHead);
 	}
-	if(retVal){ Serial.println(F("Logging...")); }
-	else      { Serial.println(F("INIT Failed...")); }
+	if(retVal)
+	{
+//		Serial.println(F("Logging..."));
+	}
+	else{
+//		Serial.println(F("INIT Failed..."));
+	}
 
 	// Wait for Serial Idle.
-	Serial.flush();
+//	Serial.flush();
 	delay(10);
 
 	bn = 0;
@@ -594,7 +599,7 @@ void logData_postProcess()
 	}
 	// Truncate file if recording stopped early.
 	if (bn != FILE_BLOCK_COUNT) {
-	Serial.println(F("Truncating file"));
+//	Serial.println(F("Truncating file"));
 	if (!binFile.truncate(512L * bn)) {
 	  error("Can't truncate file");
 	}
@@ -602,19 +607,19 @@ void logData_postProcess()
 	if (!binFile.rename(sd.vwd(), binName)) {
 	error("Can't rename file");
 	}
-	Serial.print(F("File renamed: "));
-	Serial.println(binName);
-	Serial.print(F("Max block write usec: "));
-	Serial.println(maxLatency);
-	Serial.print(F("Record time sec: "));
-	Serial.println(0.001*(t1 - t0), 3);
-	Serial.print(F("Sample count: "));
-	Serial.println(count);
-	Serial.print(F("Samples/sec: "));
-	Serial.println((1000.0)*count/(t1-t0));
-	Serial.print(F("Overruns: "));
-	Serial.println(overrunTotal);
-	Serial.println(F("Done"));
+//	Serial.print(F("File renamed: "));
+//	Serial.println(binName);
+//	Serial.print(F("Max block write usec: "));
+//	Serial.println(maxLatency);
+//	Serial.print(F("Record time sec: "));
+//	Serial.println(0.001*(t1 - t0), 3);
+//	Serial.print(F("Sample count: "));
+//	Serial.println(count);
+//	Serial.print(F("Samples/sec: "));
+//	Serial.println((1000.0)*count/(t1-t0));
+//	Serial.print(F("Overruns: "));
+//	Serial.println(overrunTotal);
+//	Serial.println(F("Done"));
 
 	//okToLog = false;
 	/** Create a new file and continue logging */
@@ -631,8 +636,8 @@ void SdLog_setup(void) {
   if (ERROR_LED_PIN >= 0) {
     pinMode(ERROR_LED_PIN, OUTPUT);
   }
-  Serial.begin(9600);
-  while (!Serial) {}
+//  Serial.begin(9600);
+//  while (!Serial) {}
 
   delay(1000);
 
@@ -652,10 +657,10 @@ void SdLog_setup(void) {
   t_of_day = mktime(&t);
 
 
-  Serial.print(F("FreeRam: "));
-  Serial.println(FreeRam());
-  Serial.print(F("Records/block: "));
-  Serial.println(DATA_DIM);
+//  Serial.print(F("FreeRam: "));
+//  Serial.println(FreeRam());
+//  Serial.print(F("Records/block: "));
+//  Serial.println(DATA_DIM);
   if (sizeof(block_t) != 512) {
     error("Invalid block size");
   }

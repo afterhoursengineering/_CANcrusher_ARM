@@ -32,7 +32,7 @@ byte buffer[64];
 byte inBuffer[64];
 
 #define CAN_ENABLED 1u
-#define SD_ENABLED 1u
+//#define SD_ENABLED 1u
 
 #define DELAY_BTWN_TX 2000u
 #define T_1MS 	1u
@@ -113,6 +113,28 @@ void OS_Run(void)
 	boolean bCan2Ok = true;
 	static CAN_msg_t msgCan1Tx,msgCan2Tx,msgCan1Rx,msgCan2Rx;
 
+	/** TEST CCOM */
+    CAN_msg_t msg1,msg2;
+	uint8_t  u8IoDir = 0xFFu;
+	uint8_t  u8IoVal = 0xAAu;
+	uint64_t u64CanEpochTime1 = 0x1122334455667788ul;
+	uint64_t u64CanEpochTime2 = 0x8877665544332211ul;
+	uint8_t bOk = 1;
+	/** END CCOM TEST VARIABLES */
+
+	/** Init CCOM test variables */
+    msg1.id = (uint32_t)0x751;
+    msg1.len = 8u;
+    msg1.stat = 0xFFu;
+    for(i=0;i<8;i++){ msg1.buf[i] = i; }
+
+    msg2.id = (uint32_t)0x3A7;
+    msg2.len = 8u;
+    msg2.stat = 0xFFu;
+    for(i=0;i<8;i++){ msg2.buf[i] = i-8u; }
+    /** END CCOM variable init */
+
+
 	SetAlarm(1u,millis() + T_10MS);
 	SetAlarm(2u,millis() + T_1MS);
 	SetAlarm(3u,millis() + T_500MS);
@@ -128,20 +150,20 @@ void OS_Run(void)
 
 	// RESET the chips
 	CAN1_MCP2515_Reset();
-//	CAN2_MCP2515_Reset();
+	CAN2_MCP2515_Reset();
 	delay(10);
 
 	// Set the chips in CONFIG mode
 	if(bCan1Ok){ if(!CAN1_setMode(MODE_CONFIG)){ bCan1Ok = false; }}
-//	if(bCan2Ok){ if(!CAN2_setMode(MODE_CONFIG)){ bCan2Ok = false; }}
+	if(bCan2Ok){ if(!CAN2_setMode(MODE_CONFIG)){ bCan2Ok = false; }}
 
 	// Set baud rate
 	if(bCan1Ok){ if(!CAN1_SetBaud(BAUD_500kbps)){ bCan1Ok = false; }}
-//	if(bCan2Ok){ if(!CAN2_SetBaud(BAUD_500kbps)){ bCan2Ok = false; }}
+	if(bCan2Ok){ if(!CAN2_SetBaud(BAUD_500kbps)){ bCan2Ok = false; }}
 
 	// On SN65HVD230 transceivers (CAN1 & CAN2) enable it...
 	if(bCan1Ok){ if(!CAN1_RX1BF_Set(RXnBF_LO)){ bCan1Ok = false; }}
-//	if(bCan2Ok){ if(!CAN2_RX1BF_Set(RXnBF_LO)){ bCan2Ok = false; }}
+	if(bCan2Ok){ if(!CAN2_RX1BF_Set(RXnBF_LO)){ bCan2Ok = false; }}
 
 	// Clear the interrupt flags
 	if(bCan1Ok)
@@ -153,15 +175,15 @@ void OS_Run(void)
 			bCan1Ok = false;
 		}
 	}
-//	if(bCan2Ok)
-//	{
-//		if(!CAN2_bitModify(CANINTF,						// Register
-//	                       ~TX2IF & ~TX1IF & ~TX0IF & ~RX1IF & ~RX0IF,	// Value to change to
-//				            TX2IF |  TX1IF |  TX0IF |  RX1IF |  RX0IF))  // Bit Mask
-//		{
-//			bCan2Ok = false;
-//		}
-//	}
+	if(bCan2Ok)
+	{
+		if(!CAN2_bitModify(CANINTF,						// Register
+	                       ~TX2IF & ~TX1IF & ~TX0IF & ~RX1IF & ~RX0IF,	// Value to change to
+				            TX2IF |  TX1IF |  TX0IF |  RX1IF |  RX0IF))  // Bit Mask
+		{
+			bCan2Ok = false;
+		}
+	}
 
 	// Enable TX0IE, TX1IE, TX2IE, RX0, RX1 Interrupts (INT pin will go low when interrupted)
 	if(bCan1Ok)
@@ -174,22 +196,22 @@ void OS_Run(void)
 		}
 	}
 
-//	if(bCan2Ok)
-//	{
-//		if(!CAN2_bitModify(CANINTE,									// Register
-//						   TX2IE | TX1IE | TX0IE | RX1IE | RX0IE, 	// Value to change to
-//				           TX2IE | TX1IE | TX0IE | RX1IE | RX0IE))	// Bit mask
-//		{
-//			bCan2Ok = false;
-//		}
-//	}
+	if(bCan2Ok)
+	{
+		if(!CAN2_bitModify(CANINTE,									// Register
+						   TX2IE | TX1IE | TX0IE | RX1IE | RX0IE, 	// Value to change to
+				           TX2IE | TX1IE | TX0IE | RX1IE | RX0IE))	// Bit mask
+		{
+			bCan2Ok = false;
+		}
+	}
 
 	// Configure as NORMAL mode before continuing
 	if(bCan1Ok){ if(!CAN1_setMode(MODE_NORMAL)){ bCan1Ok = false; }}
-//	if(bCan2Ok){ if(!CAN2_setMode(MODE_NORMAL)){ bCan2Ok = false; }}
+	if(bCan2Ok){ if(!CAN2_setMode(MODE_NORMAL)){ bCan2Ok = false; }}
 
 	if(!bCan1Ok){ BtDebug("FAILED: CAN1 Setup",true); }
-//	if(!bCan2Ok){ BtDebug("FAILED: CAN2 Setup",true); }
+	if(!bCan2Ok){ BtDebug("FAILED: CAN2 Setup",true); }
 
 #endif
 	/**
@@ -201,7 +223,7 @@ void OS_Run(void)
 	 * Create 2 CAN transmit messages in CAN_msg_t format.
 	 */
 	CAN1_PackTxCanMsgType(&msgCan1Tx, 0x00000123ul,8u,data1);
-//	CAN2_PackTxCanMsgType(&msgCan2Tx, 0x00000456ul,8u,data2);
+	CAN2_PackTxCanMsgType(&msgCan2Tx, 0x00000456ul,8u,data2);
 
 
 	/**
@@ -215,20 +237,28 @@ void OS_Run(void)
 		//SdLog_Task();
 #endif
 
+		/* Process any messages waiting to be sent via USB or BT */
+		CCOM_Task();
+
 		/**
 		 *  Process CAN RX as fast as possible. Some HSCAN messages
 		 *  can arrive as fast as every 170us-200us.
 		 */
 		CAN1_Task();
+		CAN2_Task();
 
 		/* Check if there is received CAN data available and log it */
 		if(CAN1_DataIsReady(&msgCan1Rx))
 		{
-			if(!SdLog_SaveCanData(&msgCan1Rx))
-			{
-				BtDebug("ERROR: Could not log msgCan1Rx... Trying again",true);
-				if(!SdLog_SaveCanData(&msgCan1Rx)){ BtDebug("ERROR: Retry failed.",true); }
-			}
+			bOk = CCOM_TxCmd00(&msgCan1Rx,u64CanEpochTime1,0,0,0,0);
+			u64CanEpochTime1++;
+
+
+//			if(!SdLog_SaveCanData(&msgCan1Rx))
+//			{
+//				BtDebug("ERROR: Could not log msgCan1Rx... Trying again",true);
+//				if(!SdLog_SaveCanData(&msgCan1Rx)){ BtDebug("ERROR: Retry failed.",true); }
+//			}
 		}
 
 
@@ -249,6 +279,16 @@ void OS_Run(void)
 			else if(MCP23018_get_state_LED(4u)){ MCP23018_LED(LED4, 0); MCP23018_LED(LED1, 1u); }
 			else{ MCP23018_LED(LED1, 1u); }
 
+			/** CCOM TEST */
+//		    do
+//		    {
+//		    	bOk = CCOM_TxCmd00(&msg1,u64CanEpochTime1,&msg2,u64CanEpochTime2,u8IoDir,u8IoVal);
+//		    	u64CanEpochTime1++;
+//		    	u64CanEpochTime2++;
+//		    	msg1.buf[0]++;
+//		    	msg2.buf[0]++;
+//		    }while(bOk);
+			/** END CCOM TEST */
 		}
 
 		/**************************
@@ -306,14 +346,14 @@ void OS_Run(void)
 //
 //			if(errResult){ BtDebug("CAN1 LOAD errResult: ",false); BtDebug(itoaX((uint32_t)errResult),true); }
 //
-//			errResult = CAN2_LoadTxBuffer(TX_BUF_0,			/* Send the data using TX buffer 0 */
-//					                      TX_PRIORITY_3,	/* Send the data using the highest priority */
-//										  DATA_FRAME,       /* Send message as data frame */
-//										  msgCan2Tx.id,     /* Arbitration ID */
-//										  msgCan2Tx.len,    /* # of bytes to send */
-//										  &msgCan2Tx.buf);  /* Pass the address of the data */
-//
-//			if(errResult){ BtDebug("CAN2 LOAD errResult: ",false); BtDebug(itoaX((uint32_t)errResult),true); }
+			errResult = CAN2_LoadTxBuffer(TX_BUF_0,			/* Send the data using TX buffer 0 */
+					                      TX_PRIORITY_3,	/* Send the data using the highest priority */
+										  DATA_FRAME,       /* Send message as data frame */
+										  msgCan2Tx.id,     /* Arbitration ID */
+										  msgCan2Tx.len,    /* # of bytes to send */
+										  &msgCan2Tx.buf);  /* Pass the address of the data */
+
+			if(errResult){ BtDebug("CAN2 LOAD errResult: ",false); BtDebug(itoaX((uint32_t)errResult),true); }
 //
 //			/* Log the transmit messages */
 //			SdLog_SaveCanData(&msgCan1Tx);	/* Pass the address of the CAN message */
@@ -321,7 +361,7 @@ void OS_Run(void)
 //
 //			/* Change the TX data a bit for next time */
 //			msgCan1Tx.buf[7]++; msgCan1Tx.buf[0]--;
-//			msgCan2Tx.buf[7]--; msgCan2Tx.buf[0]++;
+			msgCan2Tx.buf[7]--; msgCan2Tx.buf[0]++;
 #endif
 
 
