@@ -29,6 +29,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "ccom.h"
+#include "can1.h"
+#include "can2.h"
 
 
 /*---------------------------------------------------------------------------*/
@@ -98,7 +100,8 @@ uint8_t  rbuf_full  (T_RING_BUF *_this);
 uint8_t  rbuf_get   (T_RING_BUF *_this, uint32_t * pu32Val);
 void     rbuf_put   (T_RING_BUF *_this, uint32_t * pu32Val);
 void     rbuf_flush (T_RING_BUF *_this);
-
+void Parse_USB_rawHID(uint8_t * buf);
+void Process_RxCmd_80(uint8_t * buf);
 
 /**
  * \brief Load an output buffer with the bytes of the input buffer.
@@ -158,6 +161,8 @@ void CCOM_Task(void)
 	uint32_t u32GetAddr;
 	uint8_t *pu8Data;
 	uint8_t i;
+	uint8_t n;	// # of bytes received via USB
+	uint8_t au8Buf[MAX_FRAME_SIZE];
 
 	if(!rbuf_empty(&ccomBuf))
 	{
@@ -169,7 +174,112 @@ void CCOM_Task(void)
 
 		//for(i=0;i<MAX_FRAME_SIZE;i++){ printf("%02x,",*pu8Data++); } printf("\n\r");
 	}
-	//else{ printf("No Data...\n\r"); }
+
+	/* Process any received data */
+	n = usb_rawhid_recv(au8Buf, 0);
+	if(MAX_FRAME_SIZE == n)
+	{
+		Parse_USB_rawHID(au8Buf);
+	}
+
+}
+
+/**
+ * \brief Parses any incoming rawHID USB traffic
+ * @param buf
+ */
+void Parse_USB_rawHID(uint8_t * buf)
+{
+	uint8_t i;
+
+	//Serial.println("Received a packet.");
+	//for(i=0; i<MAX_FRAME_SIZE;i++){ Serial.printf("%02x",buf[i]); } Serial.printf("\n\r");
+
+
+	// Process data if header (A55A) and command
+	if((buf[0] == 0xA5u) && (buf[1] == 0x5Au))
+	{
+		switch(buf[2])
+		{
+		case 0x80u:
+			//Serial.println("Process_RxCmd_80");
+			Process_RxCmd_80(buf);
+			break;
+
+		default:
+
+			break;
+		}
+	}
+
+}
+
+void Process_RxCmd_80(uint8_t * buf)
+{
+	uint8_t i;
+	CAN_msg_t msg;
+	uint8_t u8Data[8];
+	uint32_t u32Id = 0;
+	uint8_t u8Dlc;
+
+	for(i=0;i<8;i++){ u8Data[i] = 0; }	// Init CAN data
+
+	// Get the DLC
+	u8Dlc = buf[8u];
+	if(u8Dlc > 8)
+	{
+		Serial.println("ERROR: u8Dlc > 8");
+		return;
+	}	// Range checking
+	// Get CAN data
+	for(i=0;i<u8Dlc;i++){ u8Data[i] = buf[i+9]; } // Can Data is held in bytes 9-16
+	// Get ARB ID (bytes 4:7, LSB = byte 4)
+	u32Id =   (uint32_t)buf[4u]          |
+			(((uint32_t)buf[5u]) << 8u)  |
+			(((uint32_t)buf[6u]) << 16u) |
+			(((uint32_t)buf[7u]) << 24u);
+
+	// Select the channel to send the data out from
+	switch(buf[3])
+	{
+	// CAN1
+	case 1:
+		//Serial.println("Attempting to send CAN1 message");
+		CAN1_PackTxCanMsgType(&msg, u32Id,u8Dlc,u8Data); // Pack the message
+		CAN1_LoadTxBuffer(TX_BUF_0,			/* Send the data using TX buffer 0 */
+				          TX_PRIORITY_3,	/* Send the data using the highest priority */
+						  DATA_FRAME,       /* Send message as data frame */
+						  msg.id,           /* Arbitration ID */
+						  msg.len,    		/* # of bytes to send */
+						  &msg.buf[0]);  		/* Pass the address of the data */
+
+		// Tell the UI what message was just sent...
+		CCOM_TxCmd00(&msg,0,0,0,0,0);
+		break;
+	// CAN2
+	case 2:
+		//Serial.println("Attempting to send CAN2 message");
+		CAN2_PackTxCanMsgType(&msg, u32Id,u8Dlc,u8Data); // Pack the message
+		CAN2_LoadTxBuffer(TX_BUF_0,			/* Send the data using TX buffer 0 */
+				          TX_PRIORITY_3,	/* Send the data using the highest priority */
+						  DATA_FRAME,       /* Send message as data frame */
+						  msg.id,           /* Arbitration ID */
+						  msg.len,    		/* # of bytes to send */
+						  &msg.buf[0]);  		/* Pass the address of the data */
+
+		// Tell the UI what message was just sent...
+		CCOM_TxCmd00(&msg,0,0,0,0,0);
+		break;
+	// SWCAN
+	case 3:
+		// TODO: Add SWCAN functionality
+		break;
+
+	default:
+		Serial.println("ERROR: buf[3] wasn't 1-3");
+		break;
+	}
+
 }
 
 /**

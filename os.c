@@ -112,13 +112,16 @@ void OS_Run(void)
 	boolean bCan1Ok = true;
 	boolean bCan2Ok = true;
 	static CAN_msg_t msgCan1Tx,msgCan2Tx,msgCan1Rx,msgCan2Rx;
+	static CAN_msg_t msg[8u];
+	static uint8_t u8SendIdx = 0;
+	static uint32_t u32ToggleData = 3000u;
 
 	/** TEST CCOM */
     CAN_msg_t msg1,msg2;
 	uint8_t  u8IoDir = 0xFFu;
 	uint8_t  u8IoVal = 0xAAu;
-	uint64_t u64CanEpochTime1 = 0x1122334455667788ul;
-	uint64_t u64CanEpochTime2 = 0x8877665544332211ul;
+	uint64_t u64CanEpochTime1 = 0;
+	uint64_t u64CanEpochTime2 = 0;;
 	uint8_t bOk = 1;
 	/** END CCOM TEST VARIABLES */
 
@@ -225,6 +228,9 @@ void OS_Run(void)
 	CAN1_PackTxCanMsgType(&msgCan1Tx, 0x00000123ul,8u,data1);
 	CAN2_PackTxCanMsgType(&msgCan2Tx, 0x00000456ul,8u,data2);
 
+	// Initialize the 8 test messages
+	CAN2_PackTxCanMsgType(&msg[0], 0x000003A7ul, 8u, data1);
+	for(i=1;i<8u;i++){ CAN2_PackTxCanMsgType(&msg[i],msg[0].id+i,8u,data1); }
 
 	/**
 	 *  MAIN SYSTEM LOOP
@@ -251,7 +257,7 @@ void OS_Run(void)
 		if(CAN1_DataIsReady(&msgCan1Rx))
 		{
 			bOk = CCOM_TxCmd00(&msgCan1Rx,u64CanEpochTime1,0,0,0,0);
-			u64CanEpochTime1++;
+
 
 
 //			if(!SdLog_SaveCanData(&msgCan1Rx))
@@ -298,6 +304,10 @@ void OS_Run(void)
 		{
 			ClearAlarm(2);
 			SetAlarm(2,millis() + T_1MS);
+
+			u64CanEpochTime1++;
+
+			if(u32ToggleData > 0){ u32ToggleData--; }
 
 #ifdef CAN_ENABLED
 //			CAN1_Task();
@@ -349,9 +359,9 @@ void OS_Run(void)
 			errResult = CAN2_LoadTxBuffer(TX_BUF_0,			/* Send the data using TX buffer 0 */
 					                      TX_PRIORITY_3,	/* Send the data using the highest priority */
 										  DATA_FRAME,       /* Send message as data frame */
-										  msgCan2Tx.id,     /* Arbitration ID */
-										  msgCan2Tx.len,    /* # of bytes to send */
-										  &msgCan2Tx.buf);  /* Pass the address of the data */
+										  msg[u8SendIdx].id,     /* Arbitration ID */
+										  msg[u8SendIdx].len,    /* # of bytes to send */
+										  &msg[u8SendIdx].buf);  /* Pass the address of the data */
 
 			if(errResult){ BtDebug("CAN2 LOAD errResult: ",false); BtDebug(itoaX((uint32_t)errResult),true); }
 //
@@ -361,7 +371,19 @@ void OS_Run(void)
 //
 //			/* Change the TX data a bit for next time */
 //			msgCan1Tx.buf[7]++; msgCan1Tx.buf[0]--;
-			msgCan2Tx.buf[7]--; msgCan2Tx.buf[0]++;
+
+			if(u8SendIdx == 2){
+				if(0 == u32ToggleData){
+					u32ToggleData = 3000u;
+					msg[u8SendIdx].buf[3]++; msg[u8SendIdx].buf[5]--;
+				}
+			}
+
+			if(u8SendIdx == 3){
+			msg[u8SendIdx].buf[7]--; msg[u8SendIdx].buf[0]++;
+			}
+			u8SendIdx++;
+			if(u8SendIdx >= 8u){ u8SendIdx = 0; }
 #endif
 
 
