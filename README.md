@@ -1,4 +1,4 @@
-# _CANcrusher_ARM
+# CANcrusher ARM
 Open Source CANbus hacking project.
 
 Please visit www.cancrushers.net for more information.
